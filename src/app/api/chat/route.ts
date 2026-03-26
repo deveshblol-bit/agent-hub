@@ -1,4 +1,4 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { prisma } from "@/lib/prisma";
 
@@ -110,14 +110,14 @@ export async function POST(req: Request) {
       content: m.content,
     }));
 
-    // Initialize Anthropic
-    const anthropic = createAnthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY!,
+    // Initialize OpenAI
+    const openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY!,
     });
 
     // Stream response
     const result = streamText({
-      model: anthropic(agent.model),
+      model: openai("gpt-4o-mini"),
       system: agent.systemPrompt,
       messages: messageHistory,
       async onFinish({ text, usage }) {

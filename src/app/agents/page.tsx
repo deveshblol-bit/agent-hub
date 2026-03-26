@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import AgentCard from "@/components/AgentCard";
 import Link from "next/link";

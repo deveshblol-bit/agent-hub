@@ -115,29 +115,15 @@ export default function ChatPage({ params }: PageProps) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("0:")) {
-              // Text chunk - parse JSON string
-              try {
-                const text = JSON.parse(line.slice(2));
-                if (text) {
-                  assistantMessage += text;
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === assistantId
-                        ? { ...msg, content: assistantMessage }
-                        : msg
-                    )
-                  );
-                }
-              } catch {
-                // skip non-JSON lines
-              }
-            }
-          }
+          const chunk = decoder.decode(value, { stream: true });
+          assistantMessage += chunk;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantId
+                ? { ...msg, content: assistantMessage }
+                : msg
+            )
+          );
         }
       }
     } catch (err: any) {

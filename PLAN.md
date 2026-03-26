@@ -1,4 +1,4 @@
-# AgentHub - Agents as a Service
+# Agentroad - Agents as a Service
 
 ## Vision
 A marketplace where users can discover and use specialized AI agents for specific tasks. Think "Gumroad for AI agents" — clean, minimal, focused on the product.

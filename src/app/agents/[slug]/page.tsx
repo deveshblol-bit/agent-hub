@@ -141,9 +141,12 @@ export default async function AgentDetailPage({ params }: PageProps) {
               </p>
             </div>
 
-            <button className="w-full bg-coral text-white font-semibold py-3.5 rounded-xl hover:bg-coral-dark transition-colors text-base">
+            <Link 
+              href={`/chat/${agent.slug}`}
+              className="block w-full bg-coral text-white font-semibold py-3.5 rounded-xl hover:bg-coral-dark transition-colors text-base text-center"
+            >
               Start Chatting
-            </button>
+            </Link>
 
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between text-sm">

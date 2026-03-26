@@ -21,6 +21,12 @@ export default function Navbar() {
             Explore Agents
           </Link>
           <Link
+            href="/dashboard"
+            className="text-sm font-medium text-muted hover:text-nearblack transition-colors"
+          >
+            Dashboard
+          </Link>
+          <Link
             href="/agents"
             className="text-sm font-medium bg-nearblack text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
           >

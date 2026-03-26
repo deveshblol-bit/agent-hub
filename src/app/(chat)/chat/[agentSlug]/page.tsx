@@ -255,9 +255,60 @@ export default function ChatPage({ params }: PageProps) {
                 }`}
               >
                 {message.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:font-heading prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-code:text-coral prose-code:bg-gray-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-strong:text-nearblack text-sm leading-relaxed">
+                  <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:font-heading prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-code:text-coral prose-code:bg-gray-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-strong:text-nearblack text-sm leading-relaxed prose-a:text-coral prose-a:no-underline prose-a:font-medium hover:prose-a:underline">
                     {message.content ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        components={{
+                          a: ({ node, href, children, ...props }) => {
+                            const isMapLink = href?.includes('google.com/maps');
+                            const isBookingLink = href?.includes('booking.com') || 
+                                                 href?.includes('getyourguide.com') || 
+                                                 href?.includes('klook.com') || 
+                                                 href?.includes('viator.com');
+                            
+                            if (isMapLink) {
+                              return (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-xs font-medium no-underline"
+                                  {...props}
+                                >
+                                  📍 {children}
+                                </a>
+                              );
+                            }
+                            
+                            if (isBookingLink) {
+                              return (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors text-xs font-medium no-underline"
+                                  {...props}
+                                >
+                                  🔗 {children}
+                                </a>
+                              );
+                            }
+                            
+                            return (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                {...props}
+                              >
+                                {children}
+                              </a>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
                     ) : (
                       <span className="text-muted italic">Thinking...</span>
                     )}

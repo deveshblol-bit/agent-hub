@@ -24,3 +24,46 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
+
+/* Enhanced link styling for travel planner */
+.prose a[href*="google.com/maps"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #eff6ff;
+  color: #2563eb;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.prose a[href*="google.com/maps"]:hover {
+  background-color: #dbeafe;
+}
+
+.prose a[href*="booking.com"],
+.prose a[href*="getyourguide.com"],
+.prose a[href*="klook.com"],
+.prose a[href*="viator.com"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.prose a[href*="booking.com"]:hover,
+.prose a[href*="getyourguide.com"]:hover,
+.prose a[href*="klook.com"]:hover,
+.prose a[href*="viator.com"]:hover {
+  background-color: #dcfce7;
+}

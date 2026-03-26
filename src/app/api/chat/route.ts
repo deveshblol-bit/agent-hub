@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toTextStreamResponse({
+    return result.toDataStreamResponse({
       headers: {
         "X-Conversation-Id": conversation.id,
       },

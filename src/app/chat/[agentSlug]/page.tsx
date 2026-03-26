@@ -120,17 +120,21 @@ export default function ChatPage({ params }: PageProps) {
 
           for (const line of lines) {
             if (line.startsWith("0:")) {
-              // Text chunk
-              const text = line.slice(2).replace(/^"(.*)"$/, "$1");
-              if (text) {
-                assistantMessage += text;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantId
-                      ? { ...msg, content: assistantMessage }
-                      : msg
-                  )
-                );
+              // Text chunk - parse JSON string
+              try {
+                const text = JSON.parse(line.slice(2));
+                if (text) {
+                  assistantMessage += text;
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantId
+                        ? { ...msg, content: assistantMessage }
+                        : msg
+                    )
+                  );
+                }
+              } catch {
+                // skip non-JSON lines
               }
             }
           }

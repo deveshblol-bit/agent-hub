@@ -62,6 +62,8 @@ export async function convertCurrency(
   }
 }
 
+import { getDestinationGuide } from "./destination-guides";
+
 // Analyze user messages to extract travel context and pre-fetch relevant data
 export async function buildTravelContext(messages: Array<{ role: string; content: string }>): Promise<string> {
   const allText = messages.map((m) => m.content).join(" ").toLowerCase();
@@ -72,6 +74,12 @@ export async function buildTravelContext(messages: Array<{ role: string; content
 
   const dest = destinations[0];
   const contextParts: string[] = [];
+
+  // Inject curated destination guide (most important!)
+  const guide = getDestinationGuide(dest);
+  if (guide) {
+    contextParts.push(guide);
+  }
 
   // Fetch weather
   const weather = await getWeather(dest);

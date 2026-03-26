@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String?
+  avatar        String?
+  credits       Float          @default(10.0)
+  plan          String         @default("free")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  icon        String?
+  description String?
+  agents      Agent[]
+
+  @@map("categories")
+}
+
+model Agent {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  name            String
+  avatar          String?
+  description     String
+  longDescription String?        @map("long_description")
+  systemPrompt    String         @map("system_prompt")
+  model           String         @default("claude-sonnet-4-5")
+  tools           String[]       @default([])
+  categoryId      String         @map("category_id")
+  category        Category       @relation(fields: [categoryId], references: [id])
+  pricePerMessage Float          @default(0.01) @map("price_per_message")
+  pricePerSession Float          @default(0.50) @map("price_per_session")
+  rating          Float          @default(0.0)
+  totalUses       Int            @default(0) @map("total_uses")
+  featured        Boolean        @default(false)
+  published       Boolean        @default(true)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  conversations   Conversation[]
+
+  @@map("agents")
+}
+
+model Conversation {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  agentId    String    @map("agent_id")
+  title      String    @default("New Conversation")
+  tokenCount Int       @default(0) @map("token_count")
+  cost       Float     @default(0.0)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  user       User      @relation(fields: [userId], references: [id])
+  agent      Agent     @relation(fields: [agentId], references: [id])
+  messages   Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversation_id")
+  role           String
+  content        String
+  tokensUsed     Int          @default(0) @map("tokens_used")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
+  @@map("messages")
+}

@@ -5,6 +5,27 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
+const TOOL_MESSAGES = [
+  "🔍 Searching for places...",
+  "🌤️ Checking weather...",
+  "💱 Converting currencies...",
+  "🏨 Finding accommodation...",
+  "🎯 Looking up activities...",
+  "📍 Getting map links...",
+  "✨ Building your itinerary...",
+];
+
+function ToolProgressText() {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((i) => (i + 1) % TOOL_MESSAGES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  return <span className="animate-pulse">{TOOL_MESSAGES[index]}</span>;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -333,16 +354,17 @@ export default function ChatPage({ params }: PageProps) {
                   🤖
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-muted rounded-full animate-bounce"></span>
-                    <span
-                      className="w-2 h-2 bg-muted rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></span>
-                    <span
-                      className="w-2 h-2 bg-muted rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></span>
+                  <div className="flex items-center gap-2 text-sm text-muted">
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-coral rounded-full animate-bounce"></span>
+                      <span className="w-1.5 h-1.5 bg-coral rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></span>
+                      <span className="w-1.5 h-1.5 bg-coral rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                    </div>
+                    {agentSlug === "travel-planner" ? (
+                      <ToolProgressText />
+                    ) : (
+                      <span>Thinking...</span>
+                    )}
                   </div>
                 </div>
               </div>

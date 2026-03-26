@@ -3,7 +3,7 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 // Extract text from a message (handles both content string and parts array)
 function getTextContent(msg: { content?: string; parts?: Array<{ type: string; text?: string }> } | undefined): string {

@@ -286,7 +286,7 @@ export async function POST(req: Request) {
       },
     });
 
-    if (user.plan === "free" && todayMessageCount >= 10) {
+    if (user.plan === "free" && todayMessageCount >= 100) {
       return new Response(
         JSON.stringify({ error: "Daily free message limit reached (10/day)" }),
         { status: 429, headers: { "Content-Type": "application/json" } }

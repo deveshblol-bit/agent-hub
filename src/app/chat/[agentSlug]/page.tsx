@@ -28,33 +28,22 @@ export default function ChatPage({ params }: PageProps) {
   useEffect(() => {
     params.then(({ agentSlug: slug }) => {
       setAgentSlug(slug);
-      // Fetch agent name
       fetch(`/api/agents/${slug}`)
         .then((res) => res.json())
         .then((data) => setAgentName(data.name))
         .catch(() => setAgentName(slug));
     });
 
-    // Get conversationId from URL if resuming
     const convId = searchParams.get("conversationId");
     if (convId) {
       setConversationId(convId);
-      // Load conversation history
-      loadConversationHistory(convId);
     }
   }, [params, searchParams]);
 
-  const loadConversationHistory = async (convId: string) => {
-    try {
-      const res = await fetch(`/api/conversations/${convId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
-      }
-    } catch (err) {
-      console.error("Failed to load conversation history:", err);
-    }
-  };
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +55,8 @@ export default function ChatPage({ params }: PageProps) {
       content: input.trim(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
     setError(null);
@@ -76,7 +66,10 @@ export default function ChatPage({ params }: PageProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMessage],
+          messages: newMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
           agentSlug,
           conversationId,
         }),
@@ -87,7 +80,6 @@ export default function ChatPage({ params }: PageProps) {
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      // Extract conversation ID from headers
       const convId = response.headers.get("X-Conversation-Id");
       if (convId && !conversationId) {
         setConversationId(convId);
@@ -98,48 +90,45 @@ export default function ChatPage({ params }: PageProps) {
         );
       }
 
-      // Read the stream
+      // Stream the response
       const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
       const decoder = new TextDecoder();
-      let assistantMessage = "";
       const assistantId = (Date.now() + 1).toString();
 
-      // Add empty assistant message to show loading
+      // Add empty assistant message
       setMessages((prev) => [
         ...prev,
         { id: assistantId, role: "assistant", content: "" },
       ]);
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+      let fullText = "";
 
-          const chunk = decoder.decode(value, { stream: true });
-          assistantMessage += chunk;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantId
-                ? { ...msg, content: assistantMessage }
-                : msg
-            )
-          );
-        }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+
+        // Update the assistant message with accumulated text
+        const currentText = fullText;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantId
+              ? { ...msg, content: currentText }
+              : msg
+          )
+        );
       }
-    } catch (err: any) {
-      console.error("Chat error:", err);
-      setError(err.message || "Failed to send message");
-      // Remove the user message if there was an error
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send message";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   if (!agentSlug) {
     return (
@@ -159,18 +148,8 @@ export default function ChatPage({ params }: PageProps) {
               href={`/agents/${agentSlug}`}
               className="text-muted hover:text-nearblack transition-colors"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-coral/20 to-purple/20 flex items-center justify-center text-xl">
@@ -202,7 +181,7 @@ export default function ChatPage({ params }: PageProps) {
                 Start a conversation
               </h2>
               <p className="text-muted">
-                Ask me anything and I'll help you out!
+                Ask me anything and I&apos;ll help you out!
               </p>
             </div>
           )}
@@ -240,7 +219,7 @@ export default function ChatPage({ params }: PageProps) {
             </div>
           ))}
 
-          {isLoading && messages[messages.length - 1]?.role === "user" && (
+          {isLoading && messages.length > 0 && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-coral/20 to-purple/20 flex items-center justify-center text-sm shrink-0">
                 🤖
@@ -248,14 +227,8 @@ export default function ChatPage({ params }: PageProps) {
               <div className="bg-white border border-gray-200 rounded-2xl px-5 py-3">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-muted rounded-full animate-bounce"></span>
-                  <span
-                    className="w-2 h-2 bg-muted rounded-full animate-bounce"
-                    style={{ animationDelay: "0.1s" }}
-                  ></span>
-                  <span
-                    className="w-2 h-2 bg-muted rounded-full animate-bounce"
-                    style={{ animationDelay: "0.2s" }}
-                  ></span>
+                  <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></span>
+                  <span className="w-2 h-2 bg-muted rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
                 </div>
               </div>
             </div>
@@ -284,7 +257,7 @@ export default function ChatPage({ params }: PageProps) {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSubmit(e as any);
+                  handleSubmit(e as unknown as React.FormEvent);
                 }
               }}
               disabled={isLoading}

@@ -2,7 +2,20 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
+
+// Extract text from a message (handles both content string and parts array)
+function getTextContent(msg: { content?: string; parts?: Array<{ type: string; text?: string }> } | undefined): string {
+  if (!msg) return "";
+  if (typeof msg.content === "string" && msg.content) return msg.content;
+  if (msg.parts) {
+    return msg.parts
+      .filter((p) => p.type === "text" && p.text)
+      .map((p) => p.text)
+      .join("");
+  }
+  return "";
+}
 
 // Helper to get or create demo user
 async function getDemoUser() {
@@ -26,19 +39,22 @@ async function getDemoUser() {
 
 export async function POST(req: Request) {
   try {
-    const { messages, agentSlug, conversationId } = await req.json();
+    const body = await req.json();
+    const { messages, agentSlug, conversationId } = body as {
+      messages: Array<{ role: string; content: string; parts?: Array<{ type: string; text?: string }> }>;
+      agentSlug: string;
+      conversationId?: string;
+    };
 
     if (!messages || !agentSlug) {
       return new Response("Missing required fields", { status: 400 });
     }
 
-    // Get demo user (in production, use NextAuth session)
     const user = await getDemoUser();
 
     // Check free tier limit
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const todayMessageCount = await prisma.message.count({
       where: {
         conversation: { userId: user.id },
@@ -53,11 +69,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get agent
     const agent = await prisma.agent.findUnique({
       where: { slug: agentSlug },
     });
-
     if (!agent) {
       return new Response("Agent not found", { status: 404 });
     }
@@ -67,61 +81,37 @@ export async function POST(req: Request) {
     if (conversationId) {
       conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
-        include: { messages: { orderBy: { createdAt: "asc" } } },
       });
     }
-
     if (!conversation) {
-      // Create new conversation with a title from first message
-      const firstUserMessage = messages.find((m: any) => m.role === "user");
-      const title = firstUserMessage?.content
-        ? firstUserMessage.content.substring(0, 50) + (firstUserMessage.content.length > 50 ? "..." : "")
-        : "New Conversation";
+      const firstUserMessage = messages.find((m) => m.role === "user");
+      const msgText = getTextContent(firstUserMessage);
+      const title = msgText ? msgText.substring(0, 50) : "New Conversation";
 
       conversation = await prisma.conversation.create({
-        data: {
-          userId: user.id,
-          agentId: agent.id,
-          title,
-        },
-        include: { messages: true },
+        data: { userId: user.id, agentId: agent.id, title },
       });
     }
 
-    // Save user message
-    const userMessage = messages[messages.length - 1];
-    await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        role: "user",
-        content: userMessage.content,
-      },
-    });
+    // Save the latest user message to DB
+    const lastUserMsg = messages[messages.length - 1];
+    if (lastUserMsg?.role === "user") {
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: "user",
+          content: getTextContent(lastUserMsg),
+        },
+      });
+    }
 
-    // Load full conversation history for context
-    const allMessages = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
-      orderBy: { createdAt: "asc" },
-    });
+    const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-    // Build messages array with system prompt and history
-    const messageHistory = allMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-
-    // Initialize OpenAI
-    const openai = createOpenAI({
-      apiKey: process.env.OPENAI_API_KEY!,
-    });
-
-    // Stream response
     const result = streamText({
       model: openai("gpt-4o-mini"),
       system: agent.systemPrompt,
-      messages: messageHistory,
+      messages: messages.map((m) => ({ role: m.role as "user" | "assistant" | "system", content: getTextContent(m) })),
       async onFinish({ text, usage }) {
-        // Save assistant message
         await prisma.message.create({
           data: {
             conversationId: conversation.id,
@@ -130,19 +120,14 @@ export async function POST(req: Request) {
             tokensUsed: usage.totalTokens,
           },
         });
-
-        // Update conversation stats
-        const totalTokens = usage.totalTokens || 0;
         await prisma.conversation.update({
           where: { id: conversation.id },
           data: {
-            tokenCount: { increment: totalTokens },
-            cost: { increment: totalTokens * 0.00001 }, // Example cost calculation
+            tokenCount: { increment: usage.totalTokens || 0 },
+            cost: { increment: (usage.totalTokens || 0) * 0.00001 },
             updatedAt: new Date(),
           },
         });
-
-        // Increment agent usage
         await prisma.agent.update({
           where: { id: agent.id },
           data: { totalUses: { increment: 1 } },
@@ -150,11 +135,12 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toTextStreamResponse({
-      headers: {
-        "X-Conversation-Id": conversation.id,
-      },
-    });
+    const response = result.toTextStreamResponse();
+
+    // Append conversation ID header
+    response.headers.set("X-Conversation-Id", conversation.id);
+
+    return response;
   } catch (error) {
     console.error("Chat API error:", error);
     return new Response("Internal server error", { status: 500 });
